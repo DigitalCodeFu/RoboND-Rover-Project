@@ -40,31 +40,50 @@ class RoverState():
     def __init__(self):
         self.start_time = None # To record the start time of navigation
         self.total_time = None # To record total duration of naviagation
+        self.stuck_time = 7.0 # Number of seconds to check if Rover stops moving.
+        self.time_updated = None # To record last time the Rover.pos_old was updated.
         self.img = None # Current camera image
         self.pos = None # Current position (x, y)
+        self.pos_old = None # Last position (x, y)
         self.yaw = None # Current yaw angle
+        self.opposite_direction = 0 # Heading to get out if stuck.
         self.pitch = None # Current pitch angle
         self.roll = None # Current roll angle
         self.vel = None # Current velocity
         self.steer = 0 # Current steering angle
+        self.steer_dampener = 0.90 # Smooth out turning after dynamic vision data.
+        self.hard_turn = 0.0 # Bearing to steer for the most navigable hard turn, left or right.
         self.throttle = 0 # Current throttle value
         self.brake = 0 # Current brake value
         self.nav_angles = None # Angles of navigable terrain pixels
         self.nav_dists = None # Distances of navigable terrain pixels
+        self.nav_angles_avg = 0.0 # Average angle of navigable terrain.
+        self.nav_angles_uncharted_avg = 0.0 # Average angle of navigable terrain which is not mapped yet.
+        self.nav_angles_uncharted_count = 0 # Count of navigable terrain which is not mapped yet.
+        self.nav_dist_front = 0.0 # Average distance of navigable terrain in front of Rover +/- 3 degrees.
+        self.stuck = False # If Rover is stuck.
+        self.stuckagain = False # If Rover is stuck twice in a row.
+        self.collision_detected = False # If a risk of collission is detected in front, based on avg. and fwd_obstacle_dist.
+        self.fwd_obstacle_dist = 13.0
+        self.impact = False
+        self.rock_dists = None # Angles of rock sample pixels
+        self.rock_angles = None # Distances of rock sample pixels
+        self.rock_angles_avg = 0.0 # Average angle of rock samples detected.
+        self.rock_dists_avg = 0.0 # Average distance of observed rock samples.
+        self.rock_dists_min = 0.0 # Smallest distance of observed rock samples.
+        self.rock_nearby = False # Checks if the average rock length is less than 20.0 away.
+        self.rock_min_dist = 55.0 # was 20
+        self.rock_pickup_range = 10.0
         self.ground_truth = ground_truth_3d # Ground truth worldmap
         self.mode = 'forward' # Current mode (can be forward or stop)
-        self.throttle_set = 0.2 # Throttle setting when accelerating
+        self.turningmode = 'off' # To flag the rover it is still turning in one direction and complete the turn (on or off)
+        self.throttle_set = 0.3 # Throttle setting when accelerating 0.5
         self.brake_set = 10 # Brake setting when braking
-        # The stop_forward and go_forward fields below represent total count
-        # of navigable terrain pixels.  This is a very crude form of knowing
-        # when you can keep going and when you should stop.  Feel free to
-        # get creative in adding new fields or modifying these!
-        self.stop_forward = 50 # Threshold to initiate stopping
-        self.go_forward = 500 # Threshold to go forward again
-        self.max_vel = 2 # Maximum velocity (meters/second)
+        self.stop_forward = 125 # Threshold to initiate stopping
+        self.go_forward = 700 # Threshold to go forward again
+        self.max_vel = 1.0 # Maximum velocity (meters/second) 2
         # Image output from perception step
-        # Update this image to display your intermediate analysis steps
-        # on screen in autonomous mode
+        # Update this image to display your intermediate analysis steps on screen in autonomous mode.
         self.vision_image = np.zeros((160, 320, 3), dtype=np.float) 
         # Worldmap
         # Update this image with the positions of navigable terrain
@@ -174,6 +193,7 @@ def send_pickup():
         pickup,
         skip_sid=True)
     eventlet.sleep(0)
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Remote Driving')
     parser.add_argument(

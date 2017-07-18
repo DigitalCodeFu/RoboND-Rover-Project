@@ -14,54 +14,61 @@ def convert_to_float(string_to_convert):
       return float_value
 
 def update_rover(Rover, data):
-      # Initialize start time and sample positions
-      if Rover.start_time == None:
-            Rover.start_time = time.time()
-            Rover.total_time = 0
-            samples_xpos = np.int_([convert_to_float(pos.strip()) for pos in data["samples_x"].split(';')])
-            samples_ypos = np.int_([convert_to_float(pos.strip()) for pos in data["samples_y"].split(';')])
-            Rover.samples_pos = (samples_xpos, samples_ypos)
-            Rover.samples_to_find = np.int(data["sample_count"])
-      # Or just update elapsed time
-      else:
-            tot_time = time.time() - Rover.start_time
-            if np.isfinite(tot_time):
-                  Rover.total_time = tot_time
-      # Print out the fields in the telemetry data dictionary
-      print(data.keys())
-      # The current speed of the rover in m/s
-      Rover.vel = convert_to_float(data["speed"])
-      # The current position of the rover
-      Rover.pos = [convert_to_float(pos.strip()) for pos in data["position"].split(';')]
-      # The current yaw angle of the rover
-      Rover.yaw = convert_to_float(data["yaw"])
-      # The current yaw angle of the rover
-      Rover.pitch = convert_to_float(data["pitch"])
-      # The current yaw angle of the rover
-      Rover.roll = convert_to_float(data["roll"])
-      # The current throttle setting
-      Rover.throttle = convert_to_float(data["throttle"])
-      # The current steering angle
-      Rover.steer = convert_to_float(data["steering_angle"])
-      # Near sample flag
-      Rover.near_sample = np.int(data["near_sample"])
-      # Picking up flag
-      Rover.picking_up = np.int(data["picking_up"])
-      # Update number of rocks found
-      Rover.samples_found = Rover.samples_to_find - np.int(data["sample_count"])
+    # Initialize start time and sample positions
+    if Rover.start_time == None:
+        Rover.start_time = time.time()
+        Rover.total_time = 0
+        samples_xpos = np.int_([convert_to_float(pos.strip()) for pos in data["samples_x"].split(';')])
+        samples_ypos = np.int_([convert_to_float(pos.strip()) for pos in data["samples_y"].split(';')])
+        Rover.samples_pos = (samples_xpos, samples_ypos)
+        Rover.samples_to_find = np.int(data["sample_count"])
+    # Or just update elapsed time
+    else:
+        tot_time = time.time() - Rover.start_time
+        if np.isfinite(tot_time):
+            Rover.total_time = tot_time
+                
+    # Print out the fields in the telemetry data dictionary
+    print(data.keys())
+    # The current speed of the rover in m/s
+    Rover.vel = convert_to_float(data["speed"])
+    # The current position of the rover
+    Rover.pos = [convert_to_float(pos.strip()) for pos in data["position"].split(';')]
+    # The current yaw angle of the rover
+    Rover.yaw = convert_to_float(data["yaw"])
+    # The current yaw angle of the rover
+    Rover.pitch = convert_to_float(data["pitch"])
+    # The current yaw angle of the rover
+    Rover.roll = convert_to_float(data["roll"])
+    # The current throttle setting
+    Rover.throttle = convert_to_float(data["throttle"])
+    # The current steering angle
+    Rover.steer = convert_to_float(data["steering_angle"])
+    # Near sample flag
+    Rover.near_sample = np.int(data["near_sample"])
+    # Picking up flag
+    Rover.picking_up = np.int(data["picking_up"])
+    # Update number of rocks found
+    Rover.samples_found = Rover.samples_to_find - np.int(data["sample_count"])
 
-      print('speed =',Rover.vel, 'position =', Rover.pos, 'throttle =', 
-      Rover.throttle, 'steer_angle =', Rover.steer, 'near_sample:', Rover.near_sample, 
-      'picking_up:', data["picking_up"], 'sending pickup:', Rover.send_pickup, 
-      'total time:', Rover.total_time, 'samples remaining:', data["sample_count"], 
-      'samples found:', Rover.samples_found)
-      # Get the current image from the center camera of the rover
-      imgString = data["image"]
-      image = Image.open(BytesIO(base64.b64decode(imgString)))
-      Rover.img = np.asarray(image)
+    print('speed =',Rover.vel, 'position =', Rover.pos, 'throttle =', 
+    Rover.throttle, 'steer_angle =', Rover.steer, 'near_sample:', Rover.near_sample, 
+        'picking_up:', data["picking_up"], 'sending pickup:', Rover.send_pickup, 
+        'total time:', Rover.total_time, 'samples remaining:', data["sample_count"], 
+        'samples found:', Rover.samples_found)
+    if Rover.pos_old != None and Rover.pos_old[0] != None:
+        print( "pos_old: (", Rover.pos_old[0], ", ", Rover.pos_old[1],")",
+               "pos: (", Rover.pos[0], ", ", Rover.pos[1],")",
+               "Rover.time_updated: ", Rover.time_updated,
+               "Rover.stuck: ", Rover.stuck )
+        
+    # Get the current image from the center camera of the rover
+    imgString = data["image"]
+    image = Image.open(BytesIO(base64.b64decode(imgString)))
+    Rover.img = np.asarray(image)
 
-      # Return updated Rover and separate image for optional saving
-      return Rover, image
+    # Return updated Rover and separate image for optional saving
+    return Rover, image
 
 # Define a function to create display output given worldmap results
 def create_output_images(Rover):
@@ -126,14 +133,62 @@ def create_output_images(Rover):
       map_add = np.flipud(map_add).astype(np.float32)
       # Add some text about map and rock sample detection results
       cv2.putText(map_add,"Time: "+str(np.round(Rover.total_time, 1))+' s', (0, 10), 
-                  cv2.FONT_HERSHEY_COMPLEX, 0.4, (255, 255, 255), 1)
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
       cv2.putText(map_add,"Mapped: "+str(perc_mapped)+'%', (0, 25), 
-                  cv2.FONT_HERSHEY_COMPLEX, 0.4, (255, 255, 255), 1)
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
       cv2.putText(map_add,"Fidelity: "+str(fidelity)+'%', (0, 40), 
-                  cv2.FONT_HERSHEY_COMPLEX, 0.4, (255, 255, 255), 1)
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
       cv2.putText(map_add,"Rocks: "+str(Rover.samples_found), (0, 55), 
-                  cv2.FONT_HERSHEY_COMPLEX, 0.4, (255, 255, 255), 1)
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
+      cv2.putText(map_add,"Rock Nearby: "+str(Rover.rock_nearby), (0, 70), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
+      cv2.putText(map_add,"Drive Mode: "+str(Rover.mode), (0, 85), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
+      cv2.putText(map_add,"Turning: "+str(Rover.turningmode), (0, 130), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
+      cv2.putText(map_add,"Collision: "+str(Rover.collision_detected), (0, 145), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
+      cv2.putText(map_add,"Stuck: "+str(Rover.stuck), (0, 160), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
+      cv2.putText(map_add,"Stuck Again: "+str(Rover.stuckagain), (0, 175), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
+      cv2.putText(map_add,"Impact: "+str(Rover.impact), (0, 190), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.35, (255, 255, 255), 1)
 
+      # Add text to Rover.vision_image on the left.
+      cv2.putText(Rover.vision_image,"Avg. Nav Angle: "+str(round(Rover.nav_angles_avg, 1)), (4, 19), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Avg. Nav Angle: "+str(round(Rover.nav_angles_avg, 1)), (0, 15), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)
+      cv2.putText(Rover.vision_image,"Avg. Rock Angle: "+str(round(Rover.rock_angles_avg, 1)), (4, 39), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Avg. Rock Angle: "+str(round(Rover.rock_angles_avg, 1)), (0, 35), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)
+      cv2.putText(Rover.vision_image,"Uncharted Angle: "+str(round(Rover.nav_angles_uncharted_avg, 1)), (4, 59), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Uncharted Angle: "+str(round(Rover.nav_angles_uncharted_avg, 1)), (0, 55), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)
+      cv2.putText(Rover.vision_image,"Uncharted Count: "+str(Rover.nav_angles_uncharted_count), (4, 79), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Uncharted Count: "+str(Rover.nav_angles_uncharted_count), (0, 75), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)
+      cv2.putText(Rover.vision_image,"Hard Turn: "+str(Rover.hard_turn), (4, 99), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Hard Turn: "+str(Rover.hard_turn), (0, 95), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)    
+      cv2.putText(Rover.vision_image,"Nav Dist Front: "+str(round(Rover.nav_dist_front, 1)), (4, 119), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Nav Dist Front: "+str(round(Rover.nav_dist_front, 1)), (0, 115), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)
+      cv2.putText(Rover.vision_image,"Avg. Rock Dist: "+str(round(Rover.rock_dists_avg, 1)), (4, 139), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Avg. Rock Dist: "+str(round(Rover.rock_dists_avg, 1)), (0, 135), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)
+      cv2.putText(Rover.vision_image,"Opposite Yaw: "+str(round(Rover.opposite_direction, -1)), (4, 159), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+      cv2.putText(Rover.vision_image,"Opposite Yaw: "+str(round(Rover.opposite_direction, -1)), (0, 155), 
+          cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 1)
+      
       # Convert map and vision image to base64 strings for sending to server
       pil_img = Image.fromarray(map_add.astype(np.uint8))
       buff = BytesIO()
